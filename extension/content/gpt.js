@@ -1,108 +1,99 @@
-// Content script for chatgpt.com
-// Same structure as claude.js — receives SEND_PROMPT, types, waits, extracts.
-//
-// ── Selectors ────────────────────────────────────────────────────────────────
+;(function () {
+// Content script for chatgpt.com — wrapped in IIFE so re-injection doesn't cause
+// duplicate const declarations in the shared isolated world.
+if (window.__COLOSSEUM_GPT__) return
+window.__COLOSSEUM_GPT__ = true
+
+// ── Selectors ─────────────────────────────────────────────────────────────────
 const SEL = {
-  // Main chat input (contenteditable div)
   input: [
     'div#prompt-textarea[contenteditable="true"]',
-    'div[contenteditable="true"]#prompt-textarea',
-    'div[contenteditable="true"][data-id="root"]',
     'div[contenteditable="true"]',
   ],
-  // Send button
-  sendBtn: [
-    'button[data-testid="send-button"]',
-    'button[aria-label="Send prompt"]',
-    'button[aria-label="Send message"]',
-  ],
-  // Each assistant message container
   response: [
     '[data-message-author-role="assistant"]',
+    '[data-testid^="conversation-turn-"][data-testid$="-assistant"]',
     '.agent-turn',
-  ],
-  // Appears while GPT is generating
-  stopBtn: [
-    'button[data-testid="stop-button"]',
-    'button[aria-label="Stop streaming"]',
-    'button[aria-label="Stop generating"]',
   ],
 }
 
-// ── Message listener ─────────────────────────────────────────────────────────
+// ── Message listener ──────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === 'SEND_PROMPT') {
-    handlePrompt(msg.content, msg.requestId)
-  }
+  if      (msg.type === 'SEND_PROMPT' || msg.type === 'SEND_PROMPT_NOWAIT')
+                                          handleSendOnly(msg.content, msg.requestId)
+  else if (msg.type === 'FETCH_RESPONSE') handleFetch(msg.requestId)
 })
 
-async function handlePrompt(content, requestId) {
+async function handleSendOnly(content, requestId) {
   try {
-    const before = countResponses()
-
     await waitForEl(SEL.input, 12000)
     await typeIntoEditor(content)
     await clickSend()
-    await waitForNewResponse(before)
-    const text = extractLastResponse()
+    chrome.runtime.sendMessage({ type: 'SEND_ACK', requestId })
+  } catch (err) {
+    chrome.runtime.sendMessage({ type: 'PROMPT_RESPONSE', requestId, error: err.message })
+  }
+}
 
+async function handleFetch(requestId) {
+  try {
+    await sleep(300)
+    const text = extractLastResponse()
     chrome.runtime.sendMessage({ type: 'PROMPT_RESPONSE', requestId, content: text })
   } catch (err) {
     chrome.runtime.sendMessage({ type: 'PROMPT_RESPONSE', requestId, error: err.message })
   }
 }
 
-// ── Editor interaction ───────────────────────────────────────────────────────
+// ── Editor interaction ────────────────────────────────────────────────────────
 async function typeIntoEditor(text) {
   const el = findEl(SEL.input)
   if (!el) throw new Error('[Colosseum] chatgpt.com input not found')
-
   el.focus()
   document.execCommand('selectAll', false, null)
   document.execCommand('insertText', false, text)
-
-  await sleep(300)
-}
-
-async function clickSend() {
-  // ChatGPT's send button can be briefly disabled while input is processing
-  await waitForCondition(() => {
-    const btn = findEl(SEL.sendBtn)
-    return btn && !btn.disabled ? btn : null
-  }, 5000)
-
-  const btn = findEl(SEL.sendBtn)
-  if (!btn) throw new Error('[Colosseum] chatgpt.com send button not found')
-  btn.click()
+  el.dispatchEvent(new InputEvent('input', { bubbles: true }))
   await sleep(600)
 }
 
-// ── Response detection ───────────────────────────────────────────────────────
-async function waitForNewResponse(responsesBeforeSend) {
-  const el = await waitForCondition(
-    () => {
-      const all = findAll(SEL.response)
-      return all.length > responsesBeforeSend ? all[all.length - 1] : null
-    },
-    15000
-  )
-
-  await waitForStable(el, 2000, 120000)
-  await sleep(300)
+async function clickSend() {
+  const btn = await waitForCondition(() => findSendButton(), 8000)
+  btn.click()
+  await sleep(800)
 }
 
+function findSendButton() {
+  const byTestId = document.querySelector('button[data-testid="send-button"]')
+  if (byTestId && !byTestId.disabled) return byTestId
+
+  const input = findEl(SEL.input)
+  if (!input) return null
+
+  let container = input.parentElement
+  for (let i = 0; i < 6; i++) {
+    if (!container) break
+    const btns = [...container.querySelectorAll('button')]
+    const enabled = btns.find(b => !b.disabled && b.querySelector('svg'))
+    if (enabled) return enabled
+    container = container.parentElement
+  }
+  return null
+}
+
+// ── Response extraction ───────────────────────────────────────────────────────
 function extractLastResponse() {
   const all = findAll(SEL.response)
   if (!all.length) throw new Error('[Colosseum] No response found on chatgpt.com')
-  // ChatGPT wraps the actual prose in .markdown or similar — innerText is reliable
-  return all[all.length - 1].innerText.trim()
+  const last = all[all.length - 1]
+  const inner = last.querySelector('.markdown, [class*="markdown"], .prose, [data-message-content]')
+  const root = inner ?? last
+  // Clone so we can strip image/media elements without mutating the live DOM
+  const clone = root.cloneNode(true)
+  clone.querySelectorAll('img, picture, video, canvas, figure, [data-testid*="image"], .image-gen-container').forEach(el => el.remove())
+  return clone.innerText.trim()
 }
 
-function countResponses() {
-  return findAll(SEL.response).length
-}
-
-// ── DOM helpers (same as claude.js) ─────────────────────────────────────────
+// ── DOM helpers ───────────────────────────────────────────────────────────────
 function findEl(selectors) {
   for (const s of selectors) {
     const el = document.querySelector(s)
@@ -119,57 +110,34 @@ function findAll(selectors) {
   return []
 }
 
+function waitForEl(selectors, timeout) {
+  return new Promise((resolve, reject) => {
+    const el = findEl(selectors)
+    if (el) return resolve(el)
+    const observer = new MutationObserver(() => {
+      const found = findEl(selectors)
+      if (found) { observer.disconnect(); resolve(found) }
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+    setTimeout(() => { observer.disconnect(); reject(new Error('[Colosseum] Input not found on chatgpt.com')) }, timeout)
+  })
+}
+
 function waitForCondition(condition, timeout) {
   return new Promise((resolve, reject) => {
     const start = Date.now()
     function check() {
       const result = condition()
       if (result) return resolve(result)
-      if (Date.now() - start > timeout) return reject(new Error('[Colosseum] Timed out waiting for response'))
-      setTimeout(check, 200)
+      if (Date.now() - start > timeout) return reject(new Error('[Colosseum] Timed out'))
+      setTimeout(check, 300)
     }
     check()
-  })
-}
-
-function waitForStable(el, quietMs, timeout) {
-  return new Promise((resolve, reject) => {
-    let quietTimer = null
-
-    function resetTimer() {
-      clearTimeout(quietTimer)
-      quietTimer = setTimeout(() => {
-        observer.disconnect()
-        resolve()
-      }, quietMs)
-    }
-
-    const observer = new MutationObserver(resetTimer)
-    observer.observe(el, { childList: true, subtree: true, characterData: true })
-    resetTimer()
-
-    setTimeout(() => {
-      observer.disconnect()
-      clearTimeout(quietTimer)
-      reject(new Error('[Colosseum] Response never stabilized'))
-    }, timeout)
-  })
-}
-
-function waitForEl(selectors, timeout) {
-  return new Promise((resolve, reject) => {
-    const el = findEl(selectors)
-    if (el) return resolve(el)
-
-    const observer = new MutationObserver(() => {
-      const found = findEl(selectors)
-      if (found) { observer.disconnect(); resolve(found) }
-    })
-    observer.observe(document.body, { childList: true, subtree: true })
-    setTimeout(() => { observer.disconnect(); reject(new Error('[Colosseum] Element not found: ' + selectors[0])) }, timeout)
   })
 }
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms))
 }
+
+})()

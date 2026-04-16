@@ -1,25 +1,33 @@
 import { Message, LoadingState } from '../types'
+import { ClipboardPending } from '../state'
 import ModelPanel from './ModelPanel'
 
 interface Props {
-  claudeMessages: Message[]
-  gptMessages:    Message[]
-  loading:        LoadingState
-  relayDepth:     number
-  maxRelayDepth:  number
-  onForward:      (msg: Message, note?: string) => void
+  claudeMessages:        Message[]
+  gptMessages:           Message[]
+  loading:               LoadingState
+  clipboardPending:      { claude?: ClipboardPending; gpt?: ClipboardPending }
+  pullReady:             { claude: boolean; gpt: boolean }
+  relayDepth:            number
+  onForward:             (msg: Message, note?: string) => void
+  onClipboardSubmit:     (model: 'claude' | 'gpt', response: string) => void
+  onPull:                (model: 'claude' | 'gpt') => void
 }
 
 export default function Arena({
   claudeMessages,
   gptMessages,
   loading,
+  clipboardPending,
+  pullReady,
   relayDepth,
-  maxRelayDepth,
   onForward,
+  onClipboardSubmit,
+  onPull,
 }: Props) {
   const isEmpty = claudeMessages.length === 0 && gptMessages.length === 0
     && !loading.claude && !loading.gpt
+    && !clipboardPending.claude && !clipboardPending.gpt
 
   return (
     <div className="arena" style={{ position: 'relative' }}>
@@ -38,18 +46,24 @@ export default function Arena({
         model="claude"
         messages={claudeMessages}
         isLoading={loading.claude}
+        clipboardPending={clipboardPending.claude}
+        pullReady={pullReady.claude}
         relayDepth={relayDepth}
-        maxRelayDepth={maxRelayDepth}
         onForward={onForward}
+        onClipboardSubmit={r => onClipboardSubmit('claude', r)}
+        onPull={() => onPull('claude')}
       />
       <div className="arena-divider" />
       <ModelPanel
         model="gpt"
         messages={gptMessages}
         isLoading={loading.gpt}
+        clipboardPending={clipboardPending.gpt}
+        pullReady={pullReady.gpt}
         relayDepth={relayDepth}
-        maxRelayDepth={maxRelayDepth}
         onForward={onForward}
+        onClipboardSubmit={r => onClipboardSubmit('gpt', r)}
+        onPull={() => onPull('gpt')}
       />
     </div>
   )

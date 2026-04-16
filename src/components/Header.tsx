@@ -1,7 +1,6 @@
 interface Props {
   title:            string
   relayDepth:       number
-  maxRelayDepth:    number
   extensionActive:  boolean
   onOpenSettings:   () => void
   onReset:          () => void
@@ -10,17 +9,11 @@ interface Props {
 export default function Header({
   title,
   relayDepth,
-  maxRelayDepth,
   extensionActive,
   onOpenSettings,
   onReset,
 }: Props) {
-  const depthClass =
-    relayDepth === 0
-      ? 'badge-ok'
-      : relayDepth < maxRelayDepth
-      ? 'badge-warn'
-      : 'badge-max'
+  const depthClass = relayDepth === 0 ? 'badge-ok' : 'badge-warn'
 
   return (
     <header className="header">
@@ -39,9 +32,9 @@ export default function Header({
           {extensionActive ? 'live' : 'mock'}
         </div>
 
-        <div className={`relay-badge ${depthClass}`} title={`${maxRelayDepth - relayDepth} relay${maxRelayDepth - relayDepth === 1 ? '' : 's'} remaining`}>
+        <div className={`relay-badge ${depthClass}`} title={`relay depth: ${relayDepth}`}>
           <span className="relay-badge-label">relay</span>
-          <span className="relay-badge-count">{relayDepth}/{maxRelayDepth}</span>
+          <span className="relay-badge-count">{relayDepth}</span>
         </div>
 
         <button className="header-btn" onClick={onReset} title="Reset session">↺</button>

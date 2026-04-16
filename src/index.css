@@ -999,3 +999,155 @@ html, body, #root {
   text-align: center;
   line-height: 1.6;
 }
+
+/* ─── Clipboard Prompt ──────────────────────────────────────────── */
+.clipboard-prompt {
+  border-radius: var(--radius);
+  border: 1px dashed var(--border-light);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+}
+
+.clipboard-prompt--claude { border-color: var(--claude-mid); }
+.clipboard-prompt--gpt    { border-color: var(--gpt-mid); }
+
+.clipboard-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clipboard-step {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.clipboard-instruction {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.clipboard-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.clipboard-link:hover { color: var(--text); }
+
+.clipboard-prompt-box {
+  position: relative;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.clipboard-prompt-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 10px 12px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.btn-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.btn-copy:hover { color: var(--text); border-color: var(--text-muted); }
+.btn-copy--done { color: var(--relay-ok); border-color: rgba(74,222,128,0.4); }
+
+.clipboard-paste-area {
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--font);
+  width: 100%;
+  resize: none;
+  line-height: 1.5;
+}
+
+.clipboard-paste-area:focus {
+  outline: none;
+  border-color: var(--border-light);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.04);
+}
+
+.clipboard-paste-area::placeholder { color: var(--text-faint); }
+
+.btn-submit-response {
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  align-self: flex-end;
+}
+
+.btn-submit-response:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.btn-submit-response:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ─── Pull button ───────────────────────────────────────────────── */
+.btn-pull {
+  background: none;
+  border: 1px solid var(--gpt-mid);
+  color: var(--gpt);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  animation: pulseGlow 2s ease-in-out infinite;
+  transition: all 0.12s;
+}
+
+.btn-pull:hover {
+  background: var(--gpt-dim);
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  50%       { box-shadow: 0 0 6px 2px rgba(52, 211, 153, 0.25); }
+}

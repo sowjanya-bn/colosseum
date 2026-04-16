@@ -5,7 +5,6 @@ interface Props {
   message: Message
   model: 'claude' | 'gpt'
   relayDepth: number
-  maxRelayDepth: number
   onForward: (msg: Message, note?: string) => void
 }
 
@@ -13,14 +12,12 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function ResponseCard({ message, model, relayDepth, maxRelayDepth, onForward }: Props) {
+export default function ResponseCard({ message, model, relayDepth, onForward }: Props) {
   const [noteOpen, setNoteOpen] = useState(false)
   const [note, setNote] = useState('')
 
   const isHuman = message.sender === 'human'
   const isModelResponse = message.sender === model
-  const canForward = isModelResponse && relayDepth < maxRelayDepth
-  const atLimit = relayDepth >= maxRelayDepth
 
   function handleForward() {
     onForward(message, note.trim() || undefined)
@@ -39,7 +36,7 @@ export default function ResponseCard({ message, model, relayDepth, maxRelayDepth
         )}
         {message.forwardedFrom && (
           <div className="card-forwarded-label">
-            forwarded from {message.forwardedFrom} · relay {message.relayDepth}/{maxRelayDepth}
+            forwarded from {message.forwardedFrom} · relay {message.relayDepth}
           </div>
         )}
         <div className="card-content">{message.content}</div>
@@ -54,7 +51,7 @@ export default function ResponseCard({ message, model, relayDepth, maxRelayDepth
     <div className={`card card--${message.sender} ${isError ? 'card--error' : ''}`}>
       {message.forwardedFrom && (
         <div className="card-forwarded-label">
-          forwarded from {message.forwardedFrom} · relay {message.relayDepth}/{maxRelayDepth}
+          forwarded from {message.forwardedFrom} · relay {message.relayDepth}
         </div>
       )}
       <div className="card-content">{message.content}</div>
@@ -86,10 +83,9 @@ export default function ResponseCard({ message, model, relayDepth, maxRelayDepth
             )}
             {!noteOpen && (
               <button
-                className={`btn-forward ${atLimit ? 'btn-forward--disabled' : ''}`}
-                onClick={() => canForward && setNoteOpen(true)}
-                disabled={atLimit}
-                title={atLimit ? `Relay limit reached (${maxRelayDepth}/${maxRelayDepth})` : `Forward to ${model === 'claude' ? 'GPT' : 'Claude'}`}
+                className="btn-forward"
+                onClick={() => isModelResponse && setNoteOpen(true)}
+                title={`Forward to ${model === 'claude' ? 'GPT' : 'Claude'}`}
               >
                 forward →
               </button>

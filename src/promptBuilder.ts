@@ -1,8 +1,8 @@
 import { SessionConfig } from './state'
 
-// Builds the full prompt to send to a model tab.
-// The context prefix is injected on the FIRST message of a session so the model
-// knows its role. Subsequent messages flow naturally in the tab's conversation.
+// Builds the prompt to send to a model tab.
+// On the first message, a brief context line is prepended so the model knows its role.
+// Subsequent messages flow naturally in the tab's conversation.
 export function buildPrompt(
   content: string,
   model: 'claude' | 'gpt',
@@ -11,13 +11,23 @@ export function buildPrompt(
 ): string {
   if (!isFirstMessage) return content
 
-  const role = model === 'claude' ? config.claudeSystem : config.gptSystem
-  const topic = config.sessionTitle.trim() || 'Untitled ideation session'
+  const brevity = 'Keep your response to plain text, 2–3 paragraphs max. No bullet lists, no headers, no markdown.'
 
-  return `[Colosseum Ideation Session]
-Topic: ${topic}
+  if (model === 'gpt') {
+    const topic = config.sessionTitle.trim()
+    return topic
+      ? `We're discussing: ${topic}\n\n${brevity}\n\n${content}`
+      : `${brevity}\n\n${content}`
+  }
+
+  // Claude gets the fuller framing
+  const role = config.claudeSystem
+  const topic = config.sessionTitle.trim() || 'an open ideation session'
+
+  return `[Colosseum — ${topic}]
 Your role: ${role}
-Note: Your response will be compared with another AI's response by a human moderator. Be direct and substantive. The moderator may forward your response to the other model.
+Note: Your response may be forwarded to another model by the human moderator. Be direct and substantive.
+${brevity}
 
 ---
 

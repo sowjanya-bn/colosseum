@@ -26,7 +26,7 @@ export function exportMarkdown(messages: Message[], config: SessionConfig): stri
   for (const msg of messages) {
     const sender = LABEL[msg.sender] ?? msg.sender
     const meta: string[] = [`**${sender}**`, formatTime(msg.timestamp)]
-    if (msg.relayDepth > 0) meta.push(`relay ${msg.relayDepth}/${config.maxRelayDepth}`)
+    if (msg.relayDepth > 0) meta.push(`relay ${msg.relayDepth}`)
     if (msg.forwardedFrom) meta.push(`forwarded from ${msg.forwardedFrom}`)
 
     lines.push(`### ${meta.join(' · ')}`)

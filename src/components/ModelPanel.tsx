@@ -1,28 +1,36 @@
 import { useEffect, useRef } from 'react'
 import { Message } from '../types'
+import { ClipboardPending } from '../state'
 import ResponseCard from './ResponseCard'
+import ClipboardPrompt from './ClipboardPrompt'
 
 interface Props {
-  model: 'claude' | 'gpt'
-  messages: Message[]
-  isLoading: boolean
-  relayDepth: number
-  maxRelayDepth: number
-  onForward: (msg: Message, note?: string) => void
+  model:            'claude' | 'gpt'
+  messages:         Message[]
+  isLoading:        boolean
+  clipboardPending: ClipboardPending | undefined
+  pullReady:        boolean
+  relayDepth:       number
+  onForward:        (msg: Message, note?: string) => void
+  onClipboardSubmit:(response: string) => void
+  onPull:           () => void
 }
 
 const MODEL_LABEL: Record<'claude' | 'gpt', string> = {
   claude: 'Claude',
-  gpt: 'GPT-4o',
+  gpt:    'GPT-4o',
 }
 
 export default function ModelPanel({
   model,
   messages,
   isLoading,
+  clipboardPending,
+  pullReady,
   relayDepth,
-  maxRelayDepth,
   onForward,
+  onClipboardSubmit,
+  onPull,
 }: Props) {
   const feedRef = useRef<HTMLDivElement>(null)
   const responseCount = messages.filter(m => m.sender === model).length
@@ -31,7 +39,7 @@ export default function ModelPanel({
     if (feedRef.current) {
       feedRef.current.scrollTop = feedRef.current.scrollHeight
     }
-  }, [messages, isLoading])
+  }, [messages, isLoading, clipboardPending])
 
   return (
     <div className={`model-panel model-panel--${model}`}>
@@ -45,13 +53,16 @@ export default function ModelPanel({
             {responseCount} {responseCount === 1 ? 'response' : 'responses'}
           </span>
         )}
+        {pullReady && (
+          <button className="btn-pull" onClick={onPull} title="Fetch GPT's current response">
+            ↓ pull response
+          </button>
+        )}
       </div>
 
       <div className="response-feed" ref={feedRef}>
-        {messages.length === 0 && !isLoading && (
-          <div className="feed-empty">
-            Waiting for the first message…
-          </div>
+        {messages.length === 0 && !isLoading && !clipboardPending && (
+          <div className="feed-empty">Waiting for the first message…</div>
         )}
 
         {messages.map(msg => (
@@ -60,7 +71,6 @@ export default function ModelPanel({
             message={msg}
             model={model}
             relayDepth={relayDepth}
-            maxRelayDepth={maxRelayDepth}
             onForward={onForward}
           />
         ))}
@@ -71,6 +81,14 @@ export default function ModelPanel({
             <span className={`loading-dot loading-dot--${model}`} />
             <span className={`loading-dot loading-dot--${model}`} />
           </div>
+        )}
+
+        {clipboardPending && !isLoading && (
+          <ClipboardPrompt
+            model={model}
+            pending={clipboardPending}
+            onSubmit={onClipboardSubmit}
+          />
         )}
       </div>
     </div>
