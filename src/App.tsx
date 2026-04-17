@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useState, useEffect } from 'react'
+import { useReducer, useCallback, useState, useEffect, useRef } from 'react'
 import { Message, Target } from './types'
 import { reducer, INITIAL_STATE } from './state'
 import { extensionAvailable, onBridgeReady, sendNowait, fetchFromModel } from './extension'
@@ -181,6 +181,37 @@ export default function App() {
     []
   )
 
+  // ── Proactive pull ─────────────────────────────────────────────────────────
+  // Retry fetching every 60s while a request is outstanding (handles background tab throttling)
+  const isDuplicateRef = useRef(isDuplicate)
+  const loadingRef = useRef(loading)
+  useEffect(() => { isDuplicateRef.current = isDuplicate }, [isDuplicate])
+  useEffect(() => { loadingRef.current = loading }, [loading])
+
+  useEffect(() => {
+    if ((!pullReady.claude && !pullReady.gpt) || !bridgeActive) return
+    const interval = setInterval(async () => {
+      for (const model of ['claude', 'gpt'] as const) {
+        if (!pullReady[model] || loadingRef.current[model]) continue
+        try {
+          const content = await fetchFromModel(model)
+          if (content && !isDuplicateRef.current(model, content)) {
+            dispatch({
+              type: 'ADD_MESSAGE',
+              message: {
+                id: uid(), timestamp: Date.now(),
+                sender: model, target: model, content,
+                relayDepth: 0,
+                source: 'live',
+              },
+            })
+          }
+        } catch { /* silent — pull button still available */ }
+      }
+    }, 60_000)
+    return () => clearInterval(interval)
+  }, [pullReady.claude, pullReady.gpt, bridgeActive])
+
   // ── Panel filtering ────────────────────────────────────────────────────────
   const claudeMessages = messages.filter(
     m => m.target === 'claude' || m.target === 'both' || m.sender === 'claude'
@@ -205,7 +236,6 @@ export default function App() {
         loading={loading}
         clipboardPending={clipboardPending}
         pullReady={pullReady}
-        relayDepth={relayDepth}
         onForward={handleForward}
         onClipboardSubmit={handleClipboardSubmit}
         onPull={handlePull}

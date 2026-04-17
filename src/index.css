@@ -536,6 +536,21 @@ html, body, #root {
 .btn-send:hover:not(:disabled) { opacity: 0.88; }
 .btn-send:disabled { opacity: 0.3; cursor: not-allowed; }
 
+.btn-context {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.btn-context:hover:not(:disabled) { color: var(--text); border-color: var(--text-muted); }
+.btn-context:disabled { opacity: 0.3; cursor: not-allowed; }
+
 /* ─── Moderator Note Row (bar) ──────────────────────────────────── */
 .mod-note-row {
   display: flex;

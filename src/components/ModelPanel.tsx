@@ -10,7 +10,6 @@ interface Props {
   isLoading:        boolean
   clipboardPending: ClipboardPending | undefined
   pullReady:        boolean
-  relayDepth:       number
   onForward:        (msg: Message, note?: string) => void
   onClipboardSubmit:(response: string) => void
   onPull:           () => void
@@ -27,7 +26,6 @@ export default function ModelPanel({
   isLoading,
   clipboardPending,
   pullReady,
-  relayDepth,
   onForward,
   onClipboardSubmit,
   onPull,
@@ -70,7 +68,6 @@ export default function ModelPanel({
             key={msg.id}
             message={msg}
             model={model}
-            relayDepth={relayDepth}
             onForward={onForward}
           />
         ))}

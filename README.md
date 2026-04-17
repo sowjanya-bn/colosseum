@@ -16,15 +16,19 @@ No API keys. Works directly with your browser sessions via a Chrome extension.
 
 ## Running it
 
-Every time you want to use Colosseum, start the dev server:
+Every time you want to use Colosseum:
 
 ```bash
-npm run dev
+npm start
 ```
 
-Then open [http://localhost:5173](http://localhost:5173) in Chrome.
+Then open [http://localhost:4173](http://localhost:4173) in Chrome.
 
-That's it. The extension stays installed permanently — you only need to reload it if you update the extension files (see below).
+This builds the app and runs it as a stable preview server — no hot-reload WebSocket, so the page won't refresh if you step away or your screen sleeps.
+
+> Use `npm run dev` only when actively making code changes (runs on port 5173 with live reload).
+
+The extension stays installed permanently — you only need to reload it if you update the extension files (see below).
 
 ---
 

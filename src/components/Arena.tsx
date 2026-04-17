@@ -8,7 +8,6 @@ interface Props {
   loading:               LoadingState
   clipboardPending:      { claude?: ClipboardPending; gpt?: ClipboardPending }
   pullReady:             { claude: boolean; gpt: boolean }
-  relayDepth:            number
   onForward:             (msg: Message, note?: string) => void
   onClipboardSubmit:     (model: 'claude' | 'gpt', response: string) => void
   onPull:                (model: 'claude' | 'gpt') => void
@@ -20,7 +19,6 @@ export default function Arena({
   loading,
   clipboardPending,
   pullReady,
-  relayDepth,
   onForward,
   onClipboardSubmit,
   onPull,
@@ -48,7 +46,6 @@ export default function Arena({
         isLoading={loading.claude}
         clipboardPending={clipboardPending.claude}
         pullReady={pullReady.claude}
-        relayDepth={relayDepth}
         onForward={onForward}
         onClipboardSubmit={r => onClipboardSubmit('claude', r)}
         onPull={() => onPull('claude')}
@@ -60,7 +57,6 @@ export default function Arena({
         isLoading={loading.gpt}
         clipboardPending={clipboardPending.gpt}
         pullReady={pullReady.gpt}
-        relayDepth={relayDepth}
         onForward={onForward}
         onClipboardSubmit={r => onClipboardSubmit('gpt', r)}
         onPull={() => onPull('gpt')}

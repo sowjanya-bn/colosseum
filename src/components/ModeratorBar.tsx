@@ -29,8 +29,19 @@ export default function ModeratorBar({ onSend, disabled }: Props) {
     textareaRef.current?.focus()
   }
 
+  function handleContext() {
+    const trimmed = message.trim()
+    if (!trimmed || disabled) return
+    onSend(`[Context only — do not respond, just acknowledge with "understood"]\n\n${trimmed}`, target, note.trim() || undefined)
+    setMessage('')
+    setNote('')
+    setNoteOpen(false)
+    textareaRef.current?.focus()
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
       handleSend()
     }
   }
@@ -70,7 +81,7 @@ export default function ModeratorBar({ onSend, disabled }: Props) {
           <textarea
             ref={textareaRef}
             className="message-input"
-            placeholder="Type a prompt… (⌘↵ to send)"
+            placeholder="Type a prompt… (Enter to send, Shift+Enter for newline)"
             value={message}
             onChange={e => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -86,6 +97,14 @@ export default function ModeratorBar({ onSend, disabled }: Props) {
               title="Add moderator note"
             >
               note
+            </button>
+            <button
+              className="btn-context"
+              onClick={handleContext}
+              disabled={disabled || !message.trim()}
+              title="Send as context only — models acknowledge but don't respond"
+            >
+              + context
             </button>
             <button
               className="btn-send"

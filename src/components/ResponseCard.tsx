@@ -4,7 +4,6 @@ import { Message } from '../types'
 interface Props {
   message: Message
   model: 'claude' | 'gpt'
-  relayDepth: number
   onForward: (msg: Message, note?: string) => void
 }
 
@@ -12,7 +11,7 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function ResponseCard({ message, model, relayDepth, onForward }: Props) {
+export default function ResponseCard({ message, model, onForward }: Props) {
   const [noteOpen, setNoteOpen] = useState(false)
   const [note, setNote] = useState('')
 
