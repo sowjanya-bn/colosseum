@@ -2,17 +2,25 @@
 
 > A human-moderated, multi-model design chamber for complex sociotechnical system design.
 
+> The best output of a Colosseum session is not an answer. It is a better decision.
+
 ## 1. What the Colosseum Method Is
 
 The Colosseum Method is a structured ideation and design-refinement practice in which a human moderator brings a live design tension into dialogue with two or more AI collaborators. The aim is not to outsource thinking, automate design decisions or generate consensus. The aim is to create disciplined friction around a problem that spans multiple registers: technical architecture, research framing, interaction design, ethics, implementation risk and user experience.
 
 In a Colosseum session, the human introduces an intuition, question, uncertainty or architectural tension. One model may extend and structure the idea, while another may challenge, reframe or stress-test it. The human then decides what survives. The value of the method lies in the loop: articulation, critique, synthesis, moderation and decision.
 
-The method works best when the input is neither too vague nor too narrow. A broad prompt such as “help me design a bot” is too open. A narrow prompt such as “write this class” is too implementation-specific. The most productive input is a live design tension, such as:
+The method works best when the input is neither too vague nor too narrow. A broad prompt such as “help me design a bot” is too open. A narrow prompt such as “write this class” is too implementation-specific. The most productive input is a live design tension: specific enough to create pressure, but open enough to require judgement.
 
-> How should the Furhat interaction layer remain expressive and smooth without compromising Echo’s epistemic honesty?
+A weak Colosseum input might be:
 
-or:
+> Help me design a museum bot.
+
+A stronger input would be:
+
+> How should a Furhat-based museum bot remain expressive and engaging while ensuring that all factual claims remain grounded in a knowledge graph?
+
+Another strong input would be:
 
 > How should the orchestration layer consume retrieval results without letting the KG backend leak presentation logic into Furhat, while still preserving evidence status, uncertainty and narrative momentum?
 
@@ -113,6 +121,8 @@ The moderator must actively test convergence by asking:
 - What are we assuming too early?
 - Which responsibility is in the wrong layer?
 - What would this look like under implementation pressure?
+
+The moderator’s role is not only to detect weak convergence, but also to create resistance when needed. This may involve asking one model to argue against the current design, requesting implementation consequences, forcing a boundary test, asking what would fail in a real deployment, or checking whether the decision still holds under social, ethical and technical pressure. The method is strongest when agreement is earned through stress-testing rather than accepted because it feels coherent.
 
 In the Echo session, some of the most useful refinements emerged after a point initially seemed settled. The anticipation window, the MER boundary, the action-source model and the distinction between remembering and tracking all became clearer because the discussion was pushed one pass further.
 
