@@ -57,6 +57,7 @@ export default function Arena(props: Props) {
             isLoading={loading[id]}
             clipboardPending={clipboardPending[id]}
             pullReady={pullReady[id]}
+            visiblePanels={visiblePanels}
             onForward={onForward}
             onClipboardSubmit={r => onClipboardSubmit(id, r)}
             onPull={() => onPull(id)}

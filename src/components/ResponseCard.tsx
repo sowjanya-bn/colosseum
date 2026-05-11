@@ -6,23 +6,31 @@ const ALL_MODELS: Model[] = ['claude', 'gpt', 'gemini']
 const MODEL_LABEL: Record<Model, string> = { claude: 'Claude', gpt: 'GPT', gemini: 'Gemini' }
 
 interface Props {
-  message:   Message
-  model:     Model
-  onForward: (msg: Message, targets: Model[], note?: string) => void
+  message:       Message
+  model:         Model
+  visiblePanels: Record<Model, boolean>
+  onForward:     (msg: Message, targets: Model[], note?: string) => void
 }
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function ResponseCard({ message, model, onForward }: Props) {
+export default function ResponseCard({ message, model, visiblePanels, onForward }: Props) {
+  const otherModels = ALL_MODELS.filter(m => m !== model && visiblePanels[m])
+
   const [forwarding, setForwarding] = useState(false)
   const [note, setNote]             = useState('')
   const [targets, setTargets]       = useState<Model[]>([])
 
-  const isHuman        = message.sender === 'human'
+  const isHuman         = message.sender === 'human'
   const isModelResponse = message.sender === model
-  const otherModels    = ALL_MODELS.filter(m => m !== model)
+
+  function openForward() {
+    // auto-select if only one other visible model
+    setTargets(otherModels.length === 1 ? [otherModels[0]] : [])
+    setForwarding(true)
+  }
 
   function toggleTarget(m: Model) {
     setTargets(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
@@ -85,24 +93,26 @@ export default function ResponseCard({ message, model, onForward }: Props) {
         {isModelResponse && (
           <div className="card-actions">
             {!forwarding && (
-              <button className="btn-forward" onClick={() => setForwarding(true)}>
+              <button className="btn-forward" onClick={openForward}>
                 forward →
               </button>
             )}
 
             {forwarding && (
               <div className="forward-panel">
-                <div className="forward-target-row">
-                  {otherModels.map(m => (
-                    <button
-                      key={m}
-                      className={`forward-target-btn forward-target-btn--${m} ${targets.includes(m) ? 'forward-target-btn--active' : ''}`}
-                      onClick={() => toggleTarget(m)}
-                    >
-                      {MODEL_LABEL[m]}
-                    </button>
-                  ))}
-                </div>
+                {otherModels.length > 1 && (
+                  <div className="forward-target-row">
+                    {otherModels.map(m => (
+                      <button
+                        key={m}
+                        className={`forward-target-btn forward-target-btn--${m} ${targets.includes(m) ? 'forward-target-btn--active' : ''}`}
+                        onClick={() => toggleTarget(m)}
+                      >
+                        {MODEL_LABEL[m]}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <input
                   className="forward-note-input"
                   placeholder="Moderator note (optional)…"

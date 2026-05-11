@@ -21,6 +21,8 @@ export default function App() {
   const [visiblePanels, setVisiblePanels] = useState<Record<PanelId, boolean>>({
     claude: true, gpt: true, gemini: true,
   })
+  const visiblePanelsRef = useRef(visiblePanels)
+  useEffect(() => { visiblePanelsRef.current = visiblePanels }, [visiblePanels])
 
   function togglePanel(panel: PanelId) {
     setVisiblePanels(prev => ({ ...prev, [panel]: !prev[panel] }))
@@ -33,11 +35,19 @@ export default function App() {
   const { messages, relayDepth, loading, config, clipboardPending, pullReady } = state
   const ALL_MODELS: Model[] = ['claude', 'gpt', 'gemini']
 
+  // Stable refs so callbacks don't need to re-create when state changes
+  const messagesRef    = useRef(messages)
+  const configRef      = useRef(config)
+  const bridgeActiveRef = useRef(bridgeActive)
+  useEffect(() => { messagesRef.current = messages },      [messages])
+  useEffect(() => { configRef.current = config },          [config])
+  useEffect(() => { bridgeActiveRef.current = bridgeActive }, [bridgeActive])
+
   // Returns true if this content is identical to the last response from that model
   const isDuplicate = useCallback((model: Model, content: string) => {
-    const last = [...messages].reverse().find(m => m.sender === model)
+    const last = [...messagesRef.current].reverse().find(m => m.sender === model)
     return last?.content.trim() === content.trim()
-  }, [messages])
+  }, [])
   const isLoading = loading.claude || loading.gpt || loading.gemini
   const hasClipboardPending = !!(clipboardPending.claude || clipboardPending.gpt || clipboardPending.gemini)
 
@@ -45,11 +55,11 @@ export default function App() {
   const respond = useCallback(
     async (targets: Model[], humanMsg: Message) => {
       const modelHasHistory = (model: Model) =>
-        messages.some(m => m.sender === model)
+        messagesRef.current.some(m => m.sender === model)
 
-      if (bridgeActive) {
+      if (bridgeActiveRef.current) {
         await Promise.all(targets.map(async (model) => {
-          const prompt = buildPrompt(humanMsg.content, model, config, !modelHasHistory(model))
+          const prompt = buildPrompt(humanMsg.content, model, configRef.current, !modelHasHistory(model))
           try {
             await sendNowait(model, prompt)
             // Pull button stays visible for the whole session once a model is used
@@ -88,7 +98,7 @@ export default function App() {
       } else {
         // Clipboard mode: generate formatted prompts, wait for user to paste back
         targets.forEach(model => {
-          const prompt = buildPrompt(humanMsg.content, model, config, !modelHasHistory(model))
+          const prompt = buildPrompt(humanMsg.content, model, configRef.current, !modelHasHistory(model))
           dispatch({
             type: 'SET_CLIPBOARD_PENDING',
             model,
@@ -97,7 +107,7 @@ export default function App() {
         })
       }
     },
-    [messages, config, bridgeActive]
+    [isDuplicate]
   )
 
   const handleSend = useCallback(
@@ -111,11 +121,16 @@ export default function App() {
         moderatorNote: note || undefined,
       }
       dispatch({ type: 'ADD_MESSAGE', message: humanMsg })
-      const targets: Model[] = target === 'all' ? ALL_MODELS : [target as Model]
+      const targets: Model[] = target === 'all'
+        ? ALL_MODELS.filter(m => visiblePanelsRef.current[m])
+        : [target as Model]
       await respond(targets, humanMsg)
     },
     [respond]
   )
+
+  const relayDepthRef = useRef(relayDepth)
+  useEffect(() => { relayDepthRef.current = relayDepth }, [relayDepth])
 
   const handleForward = useCallback(
     async (msg: Message, targets: Model[], note?: string) => {
@@ -131,14 +146,14 @@ export default function App() {
         id: uid(), timestamp: Date.now(),
         sender: 'human', target,
         content: forwardContent,
-        relayDepth: relayDepth + 1,
+        relayDepth: relayDepthRef.current + 1,
         forwardedFrom: msg.sender as Model,
         moderatorNote: note || undefined,
       }
       dispatch({ type: 'ADD_MESSAGE', message: forwardMsg })
       await respond(targets, forwardMsg)
     },
-    [relayDepth, respond]
+    [respond]
   )
 
   const handlePull = useCallback(async (model: Model) => {

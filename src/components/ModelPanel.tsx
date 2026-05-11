@@ -1,16 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { Message } from '../types'
-import { ClipboardPending } from '../state'
+import { ClipboardPending, Model } from '../state'
 import ResponseCard from './ResponseCard'
 import ClipboardPrompt from './ClipboardPrompt'
 
 interface Props {
-  model:            'claude' | 'gpt' | 'gemini'
+  model:            Model
   messages:         Message[]
   isLoading:        boolean
   clipboardPending: ClipboardPending | undefined
   pullReady:        boolean
-  onForward:        (msg: Message, targets: import('../state').Model[], note?: string) => void
+  visiblePanels:    Record<Model, boolean>
+  onForward:        (msg: Message, targets: Model[], note?: string) => void
   onClipboardSubmit:(response: string) => void
   onPull:           () => void
 }
@@ -27,6 +28,7 @@ export default function ModelPanel({
   isLoading,
   clipboardPending,
   pullReady,
+  visiblePanels,
   onForward,
   onClipboardSubmit,
   onPull,
@@ -69,6 +71,7 @@ export default function ModelPanel({
             key={msg.id}
             message={msg}
             model={model}
+            visiblePanels={visiblePanels}
             onForward={onForward}
           />
         ))}
