@@ -65,6 +65,18 @@ export default function SettingsDrawer({ config, onUpdate, onClose }: Props) {
           </section>
 
           <section className="drawer-section">
+            <label className="drawer-label">
+              <span className="label-dot label-dot--gemini" /> Gemini's role
+            </label>
+            <textarea
+              className="drawer-textarea"
+              rows={4}
+              value={local.geminiSystem}
+              onChange={e => setLocal(s => ({ ...s, geminiSystem: e.target.value }))}
+            />
+          </section>
+
+          <section className="drawer-section">
             <label className="drawer-label">Max relay depth</label>
             <div className="relay-slider-row">
               {[1, 2, 3, 4, 5].map(n => (

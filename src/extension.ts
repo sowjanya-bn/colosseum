@@ -37,7 +37,7 @@ window.addEventListener('message', event => {
   else p.resolve(content ?? '')
 })
 
-export function sendToModel(model: 'claude' | 'gpt', content: string): Promise<string> {
+export function sendToModel(model: 'claude' | 'gpt' | 'gemini', content: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const requestId = Math.random().toString(36).slice(2, 10)
     pending.set(requestId, { resolve, reject })
@@ -52,7 +52,7 @@ export function sendToModel(model: 'claude' | 'gpt', content: string): Promise<s
 }
 
 // Send to a model without waiting for response — returns when prompt is submitted
-export function sendNowait(model: 'claude' | 'gpt', content: string): Promise<void> {
+export function sendNowait(model: 'claude' | 'gpt' | 'gemini', content: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const requestId = Math.random().toString(36).slice(2, 10)
     pending.set(requestId, { resolve: () => resolve(), reject })
@@ -67,7 +67,7 @@ export function sendNowait(model: 'claude' | 'gpt', content: string): Promise<vo
 }
 
 // Fetch the current last response from a model tab
-export function fetchFromModel(model: 'claude' | 'gpt'): Promise<string> {
+export function fetchFromModel(model: 'claude' | 'gpt' | 'gemini'): Promise<string> {
   return new Promise((resolve, reject) => {
     const requestId = Math.random().toString(36).slice(2, 10)
     pending.set(requestId, { resolve, reject })

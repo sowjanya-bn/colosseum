@@ -5,7 +5,7 @@ import { SessionConfig } from './state'
 // Subsequent messages flow naturally in the tab's conversation.
 export function buildPrompt(
   content: string,
-  model: 'claude' | 'gpt',
+  model: 'claude' | 'gpt' | 'gemini',
   config: SessionConfig,
   isFirstMessage: boolean,
 ): string {
@@ -18,6 +18,19 @@ export function buildPrompt(
     return topic
       ? `We're discussing: ${topic}\n\n${brevity}\n\n${content}`
       : `${brevity}\n\n${content}`
+  }
+
+  if (model === 'gemini') {
+    const role = config.geminiSystem
+    const topic = config.sessionTitle.trim() || 'an open ideation session'
+    return `[Colosseum — ${topic}]
+Your role: ${role}
+Note: Your response may be forwarded to another model by the human moderator. Be direct and substantive.
+${brevity}
+
+---
+
+${content}`
   }
 
   // Claude gets the fuller framing

@@ -5,19 +5,20 @@ import ResponseCard from './ResponseCard'
 import ClipboardPrompt from './ClipboardPrompt'
 
 interface Props {
-  model:            'claude' | 'gpt'
+  model:            'claude' | 'gpt' | 'gemini'
   messages:         Message[]
   isLoading:        boolean
   clipboardPending: ClipboardPending | undefined
   pullReady:        boolean
-  onForward:        (msg: Message, note?: string) => void
+  onForward:        (msg: Message, targets: import('../state').Model[], note?: string) => void
   onClipboardSubmit:(response: string) => void
   onPull:           () => void
 }
 
-const MODEL_LABEL: Record<'claude' | 'gpt', string> = {
-  claude: 'Claude',
-  gpt:    'GPT-4o',
+const MODEL_LABEL: Record<'claude' | 'gpt' | 'gemini', string> = {
+  claude:  'Claude',
+  gpt:     'GPT-4o',
+  gemini:  'Gemini',
 }
 
 export default function ModelPanel({
@@ -31,7 +32,7 @@ export default function ModelPanel({
   onPull,
 }: Props) {
   const feedRef = useRef<HTMLDivElement>(null)
-  const responseCount = messages.filter(m => m.sender === model).length
+  const responseCount = messages.filter(m => m.sender === (model as string)).length
 
   useEffect(() => {
     if (feedRef.current) {
@@ -52,7 +53,7 @@ export default function ModelPanel({
           </span>
         )}
         {pullReady && (
-          <button className="btn-pull" onClick={onPull} title="Fetch GPT's current response">
+          <button className={`btn-pull btn-pull--${model}`} onClick={onPull} title={`Fetch ${MODEL_LABEL[model]}'s current response`}>
             ↓ pull response
           </button>
         )}

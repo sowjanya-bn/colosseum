@@ -1,5 +1,5 @@
-export type Sender = 'human' | 'claude' | 'gpt'
-export type Target = 'claude' | 'gpt' | 'both'
+export type Sender = 'human' | 'claude' | 'gpt' | 'gemini'
+export type Target = 'claude' | 'gpt' | 'gemini' | 'all'
 
 export interface Message {
   id: string
@@ -16,4 +16,5 @@ export interface Message {
 export interface LoadingState {
   claude: boolean
   gpt: boolean
+  gemini: boolean
 }

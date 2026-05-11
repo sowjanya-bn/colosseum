@@ -8,12 +8,13 @@ interface Props {
 
 const TARGETS: { value: Target; label: string }[] = [
   { value: 'claude', label: 'Claude' },
-  { value: 'gpt', label: 'GPT' },
-  { value: 'both', label: 'Both' },
+  { value: 'gpt',    label: 'GPT' },
+  { value: 'gemini', label: 'Gemini' },
+  { value: 'all',    label: 'All' },
 ]
 
 export default function ModeratorBar({ onSend, disabled }: Props) {
-  const [target, setTarget] = useState<Target>('both')
+  const [target, setTarget] = useState<Target>('all')
   const [message, setMessage] = useState('')
   const [noteOpen, setNoteOpen] = useState(false)
   const [note, setNote] = useState('')

@@ -3,13 +3,15 @@
 // restarts (which happen after ~30s of inactivity in MV3).
 
 const NEW_URLS = {
-  claude: 'https://claude.ai/new',
-  gpt:    'https://chatgpt.com/',
+  claude:  'https://claude.ai/new',
+  gpt:     'https://chatgpt.com/',
+  gemini:  'https://gemini.google.com/',
 }
 
 const MATCH_URLS = {
-  claude: 'https://claude.ai/*',
-  gpt:    'https://chatgpt.com/*',
+  claude:  'https://claude.ai/*',
+  gpt:     'https://chatgpt.com/*',
+  gemini:  'https://gemini.google.com/*',
 }
 
 async function getTabId(model) {
@@ -94,8 +96,9 @@ function replyToColosseum(tabId, requestId, content, error) {
 
 // ── Tab management ────────────────────────────────────────────────────────────
 const CONTENT_SCRIPTS = {
-  claude: 'content/claude.js',
-  gpt:    'content/gpt.js',
+  claude:  'content/claude.js',
+  gpt:     'content/gpt.js',
+  gemini:  'content/gemini.js',
 }
 
 async function ensureTab(model) {
@@ -156,7 +159,7 @@ async function ensureTab(model) {
 chrome.tabs.onRemoved.addListener(async tabId => {
   const { modelTabs = {} } = await chrome.storage.session.get('modelTabs')
   let changed = false
-  for (const model of ['claude', 'gpt']) {
+  for (const model of ['claude', 'gpt', 'gemini']) {
     if (modelTabs[model] === tabId) { modelTabs[model] = null; changed = true }
   }
   if (changed) await chrome.storage.session.set({ modelTabs })

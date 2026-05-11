@@ -2,19 +2,21 @@ import { useState, useRef } from 'react'
 import { ClipboardPending } from '../state'
 
 interface Props {
-  model:    'claude' | 'gpt'
+  model:    'claude' | 'gpt' | 'gemini'
   pending:  ClipboardPending
   onSubmit: (response: string) => void
 }
 
-const MODEL_URL: Record<'claude' | 'gpt', string> = {
-  claude: 'https://claude.ai',
-  gpt:    'https://chatgpt.com',
+const MODEL_URL: Record<'claude' | 'gpt' | 'gemini', string> = {
+  claude:  'https://claude.ai',
+  gpt:     'https://chatgpt.com',
+  gemini:  'https://gemini.google.com',
 }
 
-const MODEL_LABEL: Record<'claude' | 'gpt', string> = {
-  claude: 'Claude',
-  gpt:    'GPT',
+const MODEL_LABEL: Record<'claude' | 'gpt' | 'gemini', string> = {
+  claude:  'Claude',
+  gpt:     'GPT',
+  gemini:  'Gemini',
 }
 
 export default function ClipboardPrompt({ model, pending, onSubmit }: Props) {

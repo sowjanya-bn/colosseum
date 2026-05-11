@@ -1,10 +1,14 @@
 import { useState } from 'react'
 import { Message } from '../types'
+import { Model } from '../state'
+
+const ALL_MODELS: Model[] = ['claude', 'gpt', 'gemini']
+const MODEL_LABEL: Record<Model, string> = { claude: 'Claude', gpt: 'GPT', gemini: 'Gemini' }
 
 interface Props {
-  message: Message
-  model: 'claude' | 'gpt'
-  onForward: (msg: Message, note?: string) => void
+  message:   Message
+  model:     Model
+  onForward: (msg: Message, targets: Model[], note?: string) => void
 }
 
 function formatTime(ts: number): string {
@@ -12,16 +16,30 @@ function formatTime(ts: number): string {
 }
 
 export default function ResponseCard({ message, model, onForward }: Props) {
-  const [noteOpen, setNoteOpen] = useState(false)
-  const [note, setNote] = useState('')
+  const [forwarding, setForwarding] = useState(false)
+  const [note, setNote]             = useState('')
+  const [targets, setTargets]       = useState<Model[]>([])
 
-  const isHuman = message.sender === 'human'
+  const isHuman        = message.sender === 'human'
   const isModelResponse = message.sender === model
+  const otherModels    = ALL_MODELS.filter(m => m !== model)
 
-  function handleForward() {
-    onForward(message, note.trim() || undefined)
+  function toggleTarget(m: Model) {
+    setTargets(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
+  }
+
+  function handleSend() {
+    if (!targets.length) return
+    onForward(message, targets, note.trim() || undefined)
     setNote('')
-    setNoteOpen(false)
+    setTargets([])
+    setForwarding(false)
+  }
+
+  function handleCancel() {
+    setForwarding(false)
+    setNote('')
+    setTargets([])
   }
 
   if (isHuman) {
@@ -63,36 +81,47 @@ export default function ResponseCard({ message, model, onForward }: Props) {
             </span>
           )}
         </div>
+
         {isModelResponse && (
           <div className="card-actions">
-            {noteOpen && (
-              <div className="forward-note-row">
-                <input
-                  className="forward-note-input"
-                  placeholder="Add a moderator note (optional)…"
-                  value={note}
-                  onChange={e => setNote(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleForward()}
-                  autoFocus
-                />
-                <button className="btn-cancel" onClick={() => { setNoteOpen(false); setNote('') }}>
-                  cancel
-                </button>
-              </div>
-            )}
-            {!noteOpen && (
-              <button
-                className="btn-forward"
-                onClick={() => isModelResponse && setNoteOpen(true)}
-                title={`Forward to ${model === 'claude' ? 'GPT' : 'Claude'}`}
-              >
+            {!forwarding && (
+              <button className="btn-forward" onClick={() => setForwarding(true)}>
                 forward →
               </button>
             )}
-            {noteOpen && (
-              <button className="btn-forward" onClick={handleForward}>
-                send →
-              </button>
+
+            {forwarding && (
+              <div className="forward-panel">
+                <div className="forward-target-row">
+                  {otherModels.map(m => (
+                    <button
+                      key={m}
+                      className={`forward-target-btn forward-target-btn--${m} ${targets.includes(m) ? 'forward-target-btn--active' : ''}`}
+                      onClick={() => toggleTarget(m)}
+                    >
+                      {MODEL_LABEL[m]}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  className="forward-note-input"
+                  placeholder="Moderator note (optional)…"
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSend()}
+                  autoFocus
+                />
+                <div className="forward-action-row">
+                  <button className="btn-cancel" onClick={handleCancel}>cancel</button>
+                  <button
+                    className="btn-forward"
+                    onClick={handleSend}
+                    disabled={targets.length === 0}
+                  >
+                    send →
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         )}

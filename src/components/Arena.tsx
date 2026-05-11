@@ -1,66 +1,68 @@
 import { Message, LoadingState } from '../types'
-import { ClipboardPending } from '../state'
+import { ClipboardPending, Model } from '../state'
+import { PanelId } from './Header'
 import ModelPanel from './ModelPanel'
 
 interface Props {
   claudeMessages:        Message[]
   gptMessages:           Message[]
+  geminiMessages:        Message[]
   loading:               LoadingState
-  clipboardPending:      { claude?: ClipboardPending; gpt?: ClipboardPending }
-  pullReady:             { claude: boolean; gpt: boolean }
-  onForward:             (msg: Message, note?: string) => void
-  onClipboardSubmit:     (model: 'claude' | 'gpt', response: string) => void
-  onPull:                (model: 'claude' | 'gpt') => void
+  clipboardPending:      { claude?: ClipboardPending; gpt?: ClipboardPending; gemini?: ClipboardPending }
+  pullReady:             { claude: boolean; gpt: boolean; gemini: boolean }
+  visiblePanels:         Record<PanelId, boolean>
+  onForward:             (msg: Message, targets: Model[], note?: string) => void
+  onClipboardSubmit:     (model: Model, response: string) => void
+  onPull:                (model: Model) => void
 }
 
-export default function Arena({
-  claudeMessages,
-  gptMessages,
-  loading,
-  clipboardPending,
-  pullReady,
-  onForward,
-  onClipboardSubmit,
-  onPull,
-}: Props) {
-  const isEmpty = claudeMessages.length === 0 && gptMessages.length === 0
-    && !loading.claude && !loading.gpt
-    && !clipboardPending.claude && !clipboardPending.gpt
+const PANELS: { id: PanelId; messages: (p: Props) => Message[] }[] = [
+  { id: 'claude', messages: p => p.claudeMessages },
+  { id: 'gpt',    messages: p => p.gptMessages    },
+  { id: 'gemini', messages: p => p.geminiMessages  },
+]
+
+export default function Arena(props: Props) {
+  const {
+    loading, clipboardPending, pullReady, visiblePanels,
+    onForward, onClipboardSubmit, onPull,
+  } = props
+
+  const visible = PANELS.filter(p => visiblePanels[p.id])
+  const cols = visible.map(() => '1fr').join(' 1px ')
+  const isEmpty = visible.every(({ id, messages }) =>
+    messages(props).length === 0 && !loading[id] && !clipboardPending[id]
+  )
 
   return (
-    <div className="arena" style={{ position: 'relative' }}>
+    <div className="arena" style={{ gridTemplateColumns: cols, position: 'relative' }}>
       {isEmpty && (
-        <div className="arena-welcome">
+        <div className="arena-welcome" style={{ gridColumn: `1 / -1` }}>
           <span className="arena-welcome-logo">⚔</span>
           <span className="arena-welcome-line1">Start a session</span>
           <span className="arena-welcome-line2">
-            Type a prompt below and send it to Claude, GPT, or both.
+            Type a prompt below and send it to Claude, GPT, Gemini, or all three.
             You control every message and every relay.
           </span>
         </div>
       )}
 
-      <ModelPanel
-        model="claude"
-        messages={claudeMessages}
-        isLoading={loading.claude}
-        clipboardPending={clipboardPending.claude}
-        pullReady={pullReady.claude}
-        onForward={onForward}
-        onClipboardSubmit={r => onClipboardSubmit('claude', r)}
-        onPull={() => onPull('claude')}
-      />
-      <div className="arena-divider" />
-      <ModelPanel
-        model="gpt"
-        messages={gptMessages}
-        isLoading={loading.gpt}
-        clipboardPending={clipboardPending.gpt}
-        pullReady={pullReady.gpt}
-        onForward={onForward}
-        onClipboardSubmit={r => onClipboardSubmit('gpt', r)}
-        onPull={() => onPull('gpt')}
-      />
+      {visible.map(({ id, messages }, i) => (
+        <>
+          {i > 0 && <div key={`div-${id}`} className="arena-divider" />}
+          <ModelPanel
+            key={id}
+            model={id}
+            messages={messages(props)}
+            isLoading={loading[id]}
+            clipboardPending={clipboardPending[id]}
+            pullReady={pullReady[id]}
+            onForward={onForward}
+            onClipboardSubmit={r => onClipboardSubmit(id, r)}
+            onPull={() => onPull(id)}
+          />
+        </>
+      ))}
     </div>
   )
 }

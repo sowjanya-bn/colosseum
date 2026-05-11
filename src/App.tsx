@@ -1,9 +1,9 @@
 import { useReducer, useCallback, useState, useEffect, useRef } from 'react'
 import { Message, Target } from './types'
-import { reducer, INITIAL_STATE } from './state'
+import { reducer, INITIAL_STATE, Model } from './state'
 import { extensionAvailable, onBridgeReady, sendNowait, fetchFromModel } from './extension'
 import { buildPrompt } from './promptBuilder'
-import Header from './components/Header'
+import Header, { PanelId } from './components/Header'
 import Arena from './components/Arena'
 import ModeratorBar from './components/ModeratorBar'
 import TranscriptPanel from './components/TranscriptPanel'
@@ -18,25 +18,33 @@ export default function App() {
   const [transcriptOpen, setTranscriptOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [bridgeActive, setBridgeActive] = useState(extensionAvailable())
+  const [visiblePanels, setVisiblePanels] = useState<Record<PanelId, boolean>>({
+    claude: true, gpt: true, gemini: true,
+  })
+
+  function togglePanel(panel: PanelId) {
+    setVisiblePanels(prev => ({ ...prev, [panel]: !prev[panel] }))
+  }
 
   useEffect(() => {
     return onBridgeReady(() => setBridgeActive(true))
   }, [])
 
   const { messages, relayDepth, loading, config, clipboardPending, pullReady } = state
+  const ALL_MODELS: Model[] = ['claude', 'gpt', 'gemini']
 
   // Returns true if this content is identical to the last response from that model
-  const isDuplicate = useCallback((model: 'claude' | 'gpt', content: string) => {
+  const isDuplicate = useCallback((model: Model, content: string) => {
     const last = [...messages].reverse().find(m => m.sender === model)
     return last?.content.trim() === content.trim()
   }, [messages])
-  const isLoading = loading.claude || loading.gpt
-  const hasClipboardPending = !!(clipboardPending.claude || clipboardPending.gpt)
+  const isLoading = loading.claude || loading.gpt || loading.gemini
+  const hasClipboardPending = !!(clipboardPending.claude || clipboardPending.gpt || clipboardPending.gemini)
 
   // ── Core respond ───────────────────────────────────────────────────────────
   const respond = useCallback(
-    async (targets: ('claude' | 'gpt')[], humanMsg: Message) => {
-      const modelHasHistory = (model: 'claude' | 'gpt') =>
+    async (targets: Model[], humanMsg: Message) => {
+      const modelHasHistory = (model: Model) =>
         messages.some(m => m.sender === model)
 
       if (bridgeActive) {
@@ -46,7 +54,7 @@ export default function App() {
             await sendNowait(model, prompt)
             // Pull button stays visible for the whole session once a model is used
             dispatch({ type: 'SET_PULL_READY', model, value: true })
-            // Auto-fetch after 6s — user can still pull manually if it's not done
+            // Auto-fetch after 10s — user can still pull manually if it's not done
             setTimeout(async () => {
               try {
                 const content = await fetchFromModel(model)
@@ -63,7 +71,7 @@ export default function App() {
                   })
                 }
               } catch { /* auto-fetch failed — pull button is still there */ }
-            }, 6000)
+            }, 10000)
           } catch (err) {
             dispatch({
               type: 'ADD_MESSAGE',
@@ -103,15 +111,14 @@ export default function App() {
         moderatorNote: note || undefined,
       }
       dispatch({ type: 'ADD_MESSAGE', message: humanMsg })
-      const targets: ('claude' | 'gpt')[] = target === 'both' ? ['claude', 'gpt'] : [target]
+      const targets: Model[] = target === 'all' ? ALL_MODELS : [target as Model]
       await respond(targets, humanMsg)
     },
     [respond]
   )
 
   const handleForward = useCallback(
-    async (msg: Message, note?: string) => {
-      const toModel: 'claude' | 'gpt' = msg.sender === 'claude' ? 'gpt' : 'claude'
+    async (msg: Message, targets: Model[], note?: string) => {
       dispatch({ type: 'INCREMENT_RELAY' })
 
       const forwardContent = [
@@ -119,21 +126,22 @@ export default function App() {
         `[Forwarded from ${msg.sender}]:\n\n${msg.content}`,
       ].filter(Boolean).join('\n\n')
 
+      const target = targets.length === 1 ? targets[0] : 'all'
       const forwardMsg: Message = {
         id: uid(), timestamp: Date.now(),
-        sender: 'human', target: toModel,
+        sender: 'human', target,
         content: forwardContent,
         relayDepth: relayDepth + 1,
-        forwardedFrom: msg.sender as 'claude' | 'gpt',
+        forwardedFrom: msg.sender as Model,
         moderatorNote: note || undefined,
       }
       dispatch({ type: 'ADD_MESSAGE', message: forwardMsg })
-      await respond([toModel], forwardMsg)
+      await respond(targets, forwardMsg)
     },
     [relayDepth, respond]
   )
 
-  const handlePull = useCallback(async (model: 'claude' | 'gpt') => {
+  const handlePull = useCallback(async (model: Model) => {
     dispatch({ type: 'SET_LOADING', model, value: true })
     try {
       const content = await fetchFromModel(model)
@@ -165,7 +173,7 @@ export default function App() {
 
   // Called when user pastes a response back in clipboard mode
   const handleClipboardSubmit = useCallback(
-    (model: 'claude' | 'gpt', content: string) => {
+    (model: Model, content: string) => {
       dispatch({ type: 'CLEAR_CLIPBOARD', model })
       dispatch({
         type: 'ADD_MESSAGE',
@@ -189,9 +197,9 @@ export default function App() {
   useEffect(() => { loadingRef.current = loading }, [loading])
 
   useEffect(() => {
-    if ((!pullReady.claude && !pullReady.gpt) || !bridgeActive) return
+    if ((!pullReady.claude && !pullReady.gpt && !pullReady.gemini) || !bridgeActive) return
     const interval = setInterval(async () => {
-      for (const model of ['claude', 'gpt'] as const) {
+      for (const model of ALL_MODELS) {
         if (!pullReady[model] || loadingRef.current[model]) continue
         try {
           const content = await fetchFromModel(model)
@@ -210,15 +218,17 @@ export default function App() {
       }
     }, 60_000)
     return () => clearInterval(interval)
-  }, [pullReady.claude, pullReady.gpt, bridgeActive])
+  }, [pullReady.claude, pullReady.gpt, pullReady.gemini, bridgeActive])
 
   // ── Panel filtering ────────────────────────────────────────────────────────
-  const claudeMessages = messages.filter(
-    m => m.target === 'claude' || m.target === 'both' || m.sender === 'claude'
-  )
-  const gptMessages = messages.filter(
-    m => m.target === 'gpt' || m.target === 'both' || m.sender === 'gpt'
-  )
+  const panelFilter = (panel: Model) => (m: Message) => {
+    if (m.sender === panel) return true
+    if (m.forwardedFrom === panel) return false  // don't show forward msg in source panel
+    return m.target === panel || m.target === 'all'
+  }
+  const claudeMessages = messages.filter(panelFilter('claude'))
+  const gptMessages    = messages.filter(panelFilter('gpt'))
+  const geminiMessages = messages.filter(panelFilter('gemini'))
 
   return (
     <div className="app">
@@ -226,6 +236,8 @@ export default function App() {
         title={config.sessionTitle}
         relayDepth={relayDepth}
         extensionActive={bridgeActive}
+        visiblePanels={visiblePanels}
+        onTogglePanel={togglePanel}
         onOpenSettings={() => setSettingsOpen(true)}
         onReset={() => dispatch({ type: 'RESET_SESSION' })}
       />
@@ -233,9 +245,11 @@ export default function App() {
       <Arena
         claudeMessages={claudeMessages}
         gptMessages={gptMessages}
+        geminiMessages={geminiMessages}
         loading={loading}
         clipboardPending={clipboardPending}
         pullReady={pullReady}
+        visiblePanels={visiblePanels}
         onForward={handleForward}
         onClipboardSubmit={handleClipboardSubmit}
         onPull={handlePull}

@@ -4,6 +4,7 @@ export interface SessionConfig {
   sessionTitle:    string
   claudeSystem:    string
   gptSystem:       string
+  geminiSystem:    string
   maxRelayDepth:   number   // 1–5
 }
 
@@ -18,18 +19,20 @@ export interface SessionState {
   loading:           LoadingState
   config:            SessionConfig
   sessionStarted:    boolean
-  clipboardPending:  { claude?: ClipboardPending; gpt?: ClipboardPending }
-  pullReady:         { claude: boolean; gpt: boolean }
+  clipboardPending:  { claude?: ClipboardPending; gpt?: ClipboardPending; gemini?: ClipboardPending }
+  pullReady:         { claude: boolean; gpt: boolean; gemini: boolean }
 }
+
+export type Model = 'claude' | 'gpt' | 'gemini'
 
 export type Action =
   | { type: 'ADD_MESSAGE';           message: Message }
-  | { type: 'SET_LOADING';           model: 'claude' | 'gpt'; value: boolean }
+  | { type: 'SET_LOADING';           model: Model; value: boolean }
   | { type: 'INCREMENT_RELAY' }
   | { type: 'UPDATE_CONFIG';         patch: Partial<SessionConfig> }
-  | { type: 'SET_CLIPBOARD_PENDING'; model: 'claude' | 'gpt'; pending: ClipboardPending }
-  | { type: 'CLEAR_CLIPBOARD';       model: 'claude' | 'gpt' }
-  | { type: 'SET_PULL_READY';        model: 'claude' | 'gpt'; value: boolean }
+  | { type: 'SET_CLIPBOARD_PENDING'; model: Model; pending: ClipboardPending }
+  | { type: 'CLEAR_CLIPBOARD';       model: Model }
+  | { type: 'SET_PULL_READY';        model: Model; value: boolean }
   | { type: 'RESET_RELAY' }
   | { type: 'RESET_SESSION' }
 
@@ -37,17 +40,18 @@ export const DEFAULT_CONFIG: SessionConfig = {
   sessionTitle:  '',
   claudeSystem:  'Reflective, conceptual, synthetic. Look for underlying structure, tensions, and hidden assumptions. Ask what the question behind the question is.',
   gptSystem:     'Structured, pragmatic, concrete. Look for actionable clarity, edge cases, and implementation risks. Be direct about tradeoffs.',
+  geminiSystem:  'Integrative and comparative. Synthesize across perspectives, identify common ground and divergences, and suggest next questions worth exploring.',
   maxRelayDepth: 3,
 }
 
 export const INITIAL_STATE: SessionState = {
   messages:         [],
   relayDepth:       0,
-  loading:          { claude: false, gpt: false },
+  loading:          { claude: false, gpt: false, gemini: false },
   config:           DEFAULT_CONFIG,
   sessionStarted:   false,
   clipboardPending: {},
-  pullReady:        { claude: false, gpt: false },
+  pullReady:        { claude: false, gpt: false, gemini: false },
 }
 
 export function reducer(state: SessionState, action: Action): SessionState {

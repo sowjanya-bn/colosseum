@@ -1,19 +1,32 @@
+export type PanelId = 'claude' | 'gpt' | 'gemini'
+
 interface Props {
   title:            string
   relayDepth:       number
   extensionActive:  boolean
+  visiblePanels:    Record<PanelId, boolean>
+  onTogglePanel:    (panel: PanelId) => void
   onOpenSettings:   () => void
   onReset:          () => void
+}
+
+const PANEL_LABELS: Record<PanelId, string> = {
+  claude: 'Claude',
+  gpt:    'GPT',
+  gemini: 'Gemini',
 }
 
 export default function Header({
   title,
   relayDepth,
   extensionActive,
+  visiblePanels,
+  onTogglePanel,
   onOpenSettings,
   onReset,
 }: Props) {
   const depthClass = relayDepth === 0 ? 'badge-ok' : 'badge-warn'
+  const activeCount = Object.values(visiblePanels).filter(Boolean).length
 
   return (
     <header className="header">
@@ -21,6 +34,23 @@ export default function Header({
         <span className="header-logo">⚔</span>
         <h1 className="header-title">Colosseum</h1>
         {title && <span className="header-session-title">{title}</span>}
+      </div>
+
+      <div className="header-panel-toggles">
+        {(Object.keys(PANEL_LABELS) as PanelId[]).map(panel => (
+          <button
+            key={panel}
+            className={`panel-toggle panel-toggle--${panel} ${visiblePanels[panel] ? 'panel-toggle--on' : ''}`}
+            onClick={() => {
+              // prevent hiding the last visible panel
+              if (visiblePanels[panel] && activeCount === 1) return
+              onTogglePanel(panel)
+            }}
+            title={`${visiblePanels[panel] ? 'Hide' : 'Show'} ${PANEL_LABELS[panel]}`}
+          >
+            {PANEL_LABELS[panel]}
+          </button>
+        ))}
       </div>
 
       <div className="header-right">
