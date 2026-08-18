@@ -13,13 +13,20 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
+const AUTO_PLAY_MAX_DEPTH = 3
+const MODEL_LABEL: Record<Model, string> = { claude: 'Claude', gpt: 'GPT', gemini: 'Gemini' }
+
 export default function App() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE)
   const [transcriptOpen, setTranscriptOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [bridgeActive, setBridgeActive] = useState(extensionAvailable())
+  const [autoPlay, setAutoPlay] = useState(false)
+  const autoPlayRef = useRef(autoPlay)
+  useEffect(() => { autoPlayRef.current = autoPlay }, [autoPlay])
+  const [responding, setResponding] = useState(false)
   const [visiblePanels, setVisiblePanels] = useState<Record<PanelId, boolean>>({
-    claude: true, gpt: true, gemini: true,
+    claude: true, gpt: true, gemini: false,
   })
   const visiblePanelsRef = useRef(visiblePanels)
   useEffect(() => { visiblePanelsRef.current = visiblePanels }, [visiblePanels])
@@ -48,40 +55,37 @@ export default function App() {
     const last = [...messagesRef.current].reverse().find(m => m.sender === model)
     return last?.content.trim() === content.trim()
   }, [])
-  const isLoading = loading.claude || loading.gpt || loading.gemini
   const hasClipboardPending = !!(clipboardPending.claude || clipboardPending.gpt || clipboardPending.gemini)
 
   // ── Core respond ───────────────────────────────────────────────────────────
+  const respondRef = useRef<((targets: Model[], humanMsg: Message) => Promise<void>) | null>(null)
   const respond = useCallback(
     async (targets: Model[], humanMsg: Message) => {
       const modelHasHistory = (model: Model) =>
         messagesRef.current.some(m => m.sender === model)
 
       if (bridgeActiveRef.current) {
-        await Promise.all(targets.map(async (model) => {
+        // Phase 1: send to all models in parallel, wait for ALL to finish
+        const responses = await Promise.all(targets.map(async (model) => {
           const prompt = buildPrompt(humanMsg.content, model, configRef.current, !modelHasHistory(model))
           try {
             await sendNowait(model, prompt)
-            // Pull button stays visible for the whole session once a model is used
             dispatch({ type: 'SET_PULL_READY', model, value: true })
-            // Auto-fetch after 10s — user can still pull manually if it's not done
-            setTimeout(async () => {
-              try {
-                const content = await fetchFromModel(model)
-                if (content && !isDuplicate(model, content)) {
-                  dispatch({
-                    type: 'ADD_MESSAGE',
-                    message: {
-                      id: uid(), timestamp: Date.now(),
-                      sender: model, target: model, content,
-                      relayDepth: humanMsg.relayDepth,
-                      forwardedFrom: humanMsg.forwardedFrom,
-                      source: 'live',
-                    },
-                  })
-                }
-              } catch { /* auto-fetch failed — pull button is still there */ }
-            }, 10000)
+            const content = await fetchFromModel(model)
+            if (content && !isDuplicate(model, content)) {
+              dispatch({
+                type: 'ADD_MESSAGE',
+                message: {
+                  id: uid(), timestamp: Date.now(),
+                  sender: model, target: model, content,
+                  relayDepth: humanMsg.relayDepth,
+                  forwardedFrom: humanMsg.forwardedFrom,
+                  source: 'live',
+                },
+              })
+              return { model, content }
+            }
+            return null
           } catch (err) {
             dispatch({
               type: 'ADD_MESSAGE',
@@ -93,8 +97,34 @@ export default function App() {
                 source: 'live',
               },
             })
+            return null
           }
         }))
+
+        // Phase 2: once all models have responded, do the cross-exchange
+        if (autoPlayRef.current && humanMsg.relayDepth < AUTO_PLAY_MAX_DEPTH) {
+          dispatch({ type: 'INCREMENT_RELAY' })
+          await Promise.all(
+            responses
+              .filter((r): r is { model: Model; content: string } => r !== null)
+              .map(async ({ model, content }) => {
+                const otherTargets = ALL_MODELS.filter(
+                  m => m !== model && visiblePanelsRef.current[m]
+                )
+                if (!otherTargets.length) return
+                const fwdMsg: Message = {
+                  id: uid(), timestamp: Date.now(),
+                  sender: 'human',
+                  target: otherTargets.length === 1 ? otherTargets[0] : 'all',
+                  content: `[Forwarded from ${MODEL_LABEL[model]}]:\n\n${content}`,
+                  relayDepth: humanMsg.relayDepth + 1,
+                  forwardedFrom: model,
+                }
+                dispatch({ type: 'ADD_MESSAGE', message: fwdMsg })
+                await respondRef.current?.(otherTargets, fwdMsg)
+              })
+          )
+        }
       } else {
         // Clipboard mode: generate formatted prompts, wait for user to paste back
         targets.forEach(model => {
@@ -109,10 +139,10 @@ export default function App() {
     },
     [isDuplicate]
   )
+  useEffect(() => { respondRef.current = respond }, [respond])
 
   const handleSend = useCallback(
     async (content: string, target: Target, note?: string) => {
-      // Each fresh send starts a new relay chain
       dispatch({ type: 'RESET_RELAY' })
       const humanMsg: Message = {
         id: uid(), timestamp: Date.now(),
@@ -124,7 +154,8 @@ export default function App() {
       const targets: Model[] = target === 'all'
         ? ALL_MODELS.filter(m => visiblePanelsRef.current[m])
         : [target as Model]
-      await respond(targets, humanMsg)
+      setResponding(true)
+      try { await respond(targets, humanMsg) } finally { setResponding(false) }
     },
     [respond]
   )
@@ -151,7 +182,8 @@ export default function App() {
         moderatorNote: note || undefined,
       }
       dispatch({ type: 'ADD_MESSAGE', message: forwardMsg })
-      await respond(targets, forwardMsg)
+      setResponding(true)
+      try { await respond(targets, forwardMsg) } finally { setResponding(false) }
     },
     [respond]
   )
@@ -272,7 +304,9 @@ export default function App() {
 
       <ModeratorBar
         onSend={handleSend}
-        disabled={isLoading || hasClipboardPending}
+        disabled={responding || hasClipboardPending}
+        autoPlay={autoPlay}
+        onToggleAutoPlay={() => setAutoPlay(p => !p)}
       />
 
       <TranscriptPanel

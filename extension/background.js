@@ -151,8 +151,29 @@ async function ensureTab(model) {
     })
   } catch { /* already injected or tab not ready */ }
 
-  await sleep(300)
+  // Wait until the content script is actually listening (ping/pong)
+  await pingContentScript(tabId)
   return tabId
+}
+
+// Retry sending PING until content script responds or timeout.
+async function pingContentScript(tabId, timeout = 8000) {
+  const start = Date.now()
+  while (Date.now() - start < timeout) {
+    try {
+      await new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, { type: 'PING' }, response => {
+          if (chrome.runtime.lastError) reject(chrome.runtime.lastError)
+          else if (response?.pong) resolve()
+          else reject(new Error('no pong'))
+        })
+      })
+      return // content script is ready
+    } catch {
+      await sleep(200)
+    }
+  }
+  // Best-effort: if we can't confirm, proceed anyway (tab may still work)
 }
 
 // Clear registry when a model tab is closed

@@ -77,6 +77,6 @@ export function fetchFromModel(model: 'claude' | 'gpt' | 'gemini'): Promise<stri
         pending.delete(requestId)
         reject(new Error(`${model} fetch timed out`))
       }
-    }, 15_000)
+    }, 75_000)
   })
 }
